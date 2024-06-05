@@ -1,62 +1,78 @@
-import bodyParser from 'body-parser';
-import express from 'express';
+const express = require('express')
+const bodyParser = require('body-parser')
+const mongoose = require('mongoose')
+const User = require('./models/user.model')
 
-const users = [
-    { id: 546, username: 'John' },
-    { id: 894, username: 'Mary' },
-    { id: 326, username: 'Jane' },
-];
+
+
+const url = "mongodb://localhost:27017/MYDB"
+
+
+async function dbConnection(url) {
+    try {
+        await mongoose.connect(url)
+        console.log("MongoDB connected successfully!!!!")
+    } catch (error) {
+        console.error(error.message)
+    }
+}
+
 
 const app = express();
 app.use(bodyParser.json());
 
-app.get('/users/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const user = users.find(user => user.id === id);
-    if (user) {
-        res.json(user);
-    } else {
-        res.status(404).json({ error: "User not found" });
-    }
-});
+dbConnection(url);
 
-app.post('/users', (req, res) => {
-    const newUser = req.body;
-    if (!newUser.id || !newUser.username) {
-        return res.status(400).json({ error: "Both id and username are required" });
-    }
-    if (users.find(user => user.id === newUser.id)) {
-        return res.status(400).json({ error: "User with the same id already exists" });
-    }
-    users.push(newUser);
-    res.send("Data added");
-});
-
-app.delete('/users/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const index = users.findIndex(user => user.id === id);
-    if (index !== -1) {
-        users.splice(index, 1);
-        res.send("DELETE Request Called");
-    } else {
-        res.status(404).json({ error: "User not found" });
-    }
-});
-
-app.put('/users/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const userIndex = users.findIndex(user => user.id === id);
-    if (userIndex !== -1) {
-        const updatedUser = req.body;
-        if (!updatedUser.id || !updatedUser.username) {
-            return res.status(400).json({ error: "Both id and username are required" });
+app.post('/user', async (req, res) => {
+    try {
+        if(!req.body.name || !req.body.email){
+            return res.status(400).send({
+                error:"Name and Email required"
+            })
         }
-        users[userIndex] = updatedUser;
-        res.send("User updated successfully");
-    } else {
-        res.status(404).json({ error: "User not found" });
+        const user = await User.create(req.body);
+        res.status(201).send(user); 
+    } catch (error) {
+        console.error(error); 
+        res.status(500).json({ error: error.message });
     }
 });
+
+app.get('/user', async(req,res) => {
+    try {
+        const users = await User.find();
+        if(users.length === 0) {
+            return res.status(404).send({
+                error:"No users found"
+            })
+        }
+        res.send(users)
+    } catch (error) {
+        console.error(error); 
+        res.status(500).json({ error: error.message });
+    }
+})
+
+app.put('/user/:id', async(req,res) => {
+    try {
+        const user = await User.findByIdAndUpdate(req.params.id,req.body)
+        res.send(user);
+    } catch (error) {
+        console.error(error); 
+        res.status(500).json({ error: error.message });
+    }
+})
+
+app.delete('/user/:id', async(req,res) => {
+    try {
+        const user = await User.findByIdAndDelete(req.params.id )
+        res.send(user);
+    } catch (error) {
+        console.error(error); 
+        res.status(500).json({ error: error.message });
+    }
+})
+
 
 const port = 8080;
 
